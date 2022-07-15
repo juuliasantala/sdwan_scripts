@@ -23,6 +23,7 @@ import os
 import requests
 import urllib3
 import yaml
+import pprint
 
 urllib3.disable_warnings()
 
@@ -40,6 +41,7 @@ class vManage():
     '''
     authentication_cookie = None
     xsrf_token = None
+    users = []
 
     def __init__(self,
                 ip_address: str,
@@ -56,6 +58,7 @@ class vManage():
 
         self.get_cookie()
         self.get_xsrf_token()
+        self.get_users()
 
     def get_cookie(self) -> None:
         '''
@@ -97,6 +100,17 @@ class vManage():
             print(f"Error:\n{response.text}")
         else:
             self.xsrf_token = response.text
+
+    def get_users(self) -> None:
+        url = f"{self.base_url}/dataservice/admin/user"
+        headers = {"Content-Type":"application/json", "X-XSRF-TOKEN": self.xsrf_token}
+        response = requests.get(url, headers=headers,
+                                cookies=self.authentication_cookie, verify=self.verify)
+        if response.status_code != 200:
+            print(f"Error:\n{response.text}")
+        else:
+            self.users = [user["userName"] for user in response.json()["data"]]
+
 
 def unlock_user(pod: vManage, user: str = "netadmin") -> None:
     '''
@@ -140,25 +154,56 @@ def get_pod_ips(filename:str) -> list:
     return pods["Pods"]
 
 if __name__ == "__main__":
-    print("You are about to unlock the user netadmin's account in vManage.")
-
+    print("You are about to unlock a user account in vManage.")
     pods = get_pod_ips("./pods.yaml")
     while True:
-        selection = input("Type the number of your pod: ")
+        selection = input("\nType the number of your pod: ")
         try:
             pod = pods[int(selection)-1]
         except ValueError:
             print(f"> '{selection}' is not a number!")
-            print("\n")
         except IndexError:
             print(f"> '{selection}' is not a valid pod number!")
             print("> Please recheck your Pod number from 'Self Serve Labs' GUI")
-            print("\n")
         else:
-            break
+            verify = input(f"You have selected pod {selection} ({pod}). Is that correct (Y/N)? ")
+            if verify.upper() == "Y" or verify.upper() == "YES":
+                break
+            elif verify.upper() == "N" or verify.upper() == "NO":
+                continue
+            else:
+                print("Not a valid option.")
+                continue
 
+    print("*"*30)
     print(f"Your are about to connect to pod {selection} in {pod}")
     my_vmanage = vManage(pod, "admin", os.getenv("PW"))
+    users = my_vmanage.users
+
     print("*"*30)
+    while True:
+        print(f"\nThe users of pod {selection}:")
+        for i,user in enumerate(users):
+            print(f"{i+1}. {user}", end=" ")
+        selection = input("\nType the number of the user that you want to unlock: ")
+        try:
+            user = users[int(selection)-1]
+        except ValueError:
+            print(f"> '{selection}' is not a number!")
+        except IndexError:
+            print(f"> '{selection}' is not a valid user number!")
+            print("> Please recheck your User's number from the list")
+        else:
+            verify = input(f"You are about to unlock user {user}. Is that correct (Y/N)? ")
+            if verify.upper() == "Y" or verify.upper() == "YES":
+                break
+            elif verify.upper() == "N" or verify.upper() == "NO":
+                continue
+            else:
+                print("Not a valid option.")
+                continue
+
+    print("*"*30)
+
     print("Starting to unlock...\n")
-    unlock_user(my_vmanage)
+    unlock_user(my_vmanage, user=user)
