@@ -23,7 +23,6 @@ import os
 import requests
 import urllib3
 import yaml
-import pprint
 
 urllib3.disable_warnings()
 
@@ -38,6 +37,7 @@ class vManage():
     Methods:
         get_cookie
         get_xsrf_token
+        get_users
     '''
     authentication_cookie = None
     xsrf_token = None
@@ -102,6 +102,10 @@ class vManage():
             self.xsrf_token = response.text
 
     def get_users(self) -> None:
+        '''
+        Get users of the vManage.
+        Saves list of the usernames in object property "users".
+        '''
         url = f"{self.base_url}/dataservice/admin/user"
         headers = {"Content-Type":"application/json", "X-XSRF-TOKEN": self.xsrf_token}
         response = requests.get(url, headers=headers,
@@ -142,10 +146,10 @@ def get_pod_ips(filename:str) -> list:
         Pods:
             - 1.1.1.1
             - 2.2.2.2
-    
+
     Parameters:
         filename (str): the name of the YAML file
-    
+
     Returns:
         pods (list): the list of Pod IP addresses
     '''
@@ -155,29 +159,29 @@ def get_pod_ips(filename:str) -> list:
 
 if __name__ == "__main__":
     print("You are about to unlock a user account in vManage.")
-    pods = get_pod_ips("./pods.yaml")
+    my_pods = get_pod_ips("./pods.yaml")
     while True:
         selection = input("\nType the number of your pod: ")
         try:
-            pod = pods[int(selection)-1]
+            selected_pod = my_pods[int(selection)-1]
         except ValueError:
             print(f"> '{selection}' is not a number!")
         except IndexError:
             print(f"> '{selection}' is not a valid pod number!")
             print("> Please recheck your Pod number from 'Self Serve Labs' GUI")
         else:
-            verify = input(f"You have selected pod {selection} ({pod}). Is that correct (Y/N)? ")
-            if verify.upper() == "Y" or verify.upper() == "YES":
+            verify_pod = input(f"You have selected pod {selection} ({selected_pod}). Is that correct (Y/N)? ")
+            if verify_pod.upper() == "Y" or verify_pod.upper() == "YES":
                 break
-            elif verify.upper() == "N" or verify.upper() == "NO":
-                continue
-            else:
-                print("Not a valid option.")
+
+            if verify_pod.upper() == "N" or verify_pod.upper() == "NO":
                 continue
 
+            print("Not a valid option.")
+
     print("*"*30)
-    print(f"Your are about to connect to pod {selection} in {pod}")
-    my_vmanage = vManage(pod, "admin", os.getenv("PW"))
+    print(f"Your are about to connect to pod {selection} in {selected_pod}")
+    my_vmanage = vManage(selected_pod, "admin", os.getenv("PW"))
     users = my_vmanage.users
 
     print("*"*30)
@@ -187,23 +191,23 @@ if __name__ == "__main__":
             print(f"{i+1}. {user}", end=" ")
         selection = input("\nType the number of the user that you want to unlock: ")
         try:
-            user = users[int(selection)-1]
+            selected_user = users[int(selection)-1]
         except ValueError:
             print(f"> '{selection}' is not a number!")
         except IndexError:
             print(f"> '{selection}' is not a valid user number!")
             print("> Please recheck your User's number from the list")
         else:
-            verify = input(f"You are about to unlock user {user}. Is that correct (Y/N)? ")
-            if verify.upper() == "Y" or verify.upper() == "YES":
+            verify_user = input(f"You are about to unlock user {selected_user}. Is that correct (Y/N)? ")
+            if verify_user.upper() == "Y" or verify_user.upper() == "YES":
                 break
-            elif verify.upper() == "N" or verify.upper() == "NO":
+
+            if verify_user.upper() == "N" or verify_user.upper() == "NO":
                 continue
-            else:
-                print("Not a valid option.")
-                continue
+
+            print("Not a valid option.")
 
     print("*"*30)
 
     print("Starting to unlock...\n")
-    unlock_user(my_vmanage, user=user)
+    unlock_user(my_vmanage, user=selected_user)
